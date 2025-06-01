@@ -2,152 +2,204 @@ import React, { useState, useEffect } from "react";
 
 interface CategorySuggestionsProps {
   categories: string[];
+  onDoneUpdate?: (doneCount: number) => void;
+  onTotalUpdate?: (totalCount: number) => void;
+  onScoreUpdate?: (score: number) => void;
 }
 
 interface Article {
   pageid: number;
   title: string;
   relatedCategories: string[];
-  views: number;
+  cleanup_messages: string[];
+  relevance: number;
 }
+
+const staticArticles: Article[] = [
+  {
+    pageid: 12345,
+    title: "Science Article 1",
+    relatedCategories: ["Science", "Technology"],
+    cleanup_messages: ["Message 1 about cleanup", "Additional cleanup note"],
+    relevance: 85,
+  },
+  {
+    pageid: 67890,
+    title: "History Article 2",
+    relatedCategories: ["History"],
+    cleanup_messages: ["Single cleanup message"],
+    relevance: 65,
+  },
+  {
+    pageid: 11223,
+    title: "Health Article 3",
+    relatedCategories: ["Health", "Science"],
+    cleanup_messages: [
+      "First cleanup message",
+      "Second cleanup message",
+      "Third cleanup note",
+    ],
+    relevance: 92,
+  },
+];
+
+type SortKey = "cleanupCount" | "relevance" | null;
 
 const CategorySuggestions: React.FC<CategorySuggestionsProps> = ({
   categories,
+  onDoneUpdate,
+  onTotalUpdate,
+  onScoreUpdate,
 }) => {
-  const [articles, setArticles] = useState<Article[]>([]);
+  const [sortKey, setSortKey] = useState<SortKey>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [doneArticles, setDoneArticles] = useState<Set<number>>(new Set());
 
-  const normalize = (s: string) => s.toLowerCase().replace(/[_-]/g, " ").trim();
+  const filteredArticles = staticArticles.filter((article) =>
+    article.relatedCategories.some((cat) => categories.includes(cat))
+  );
 
-  const fetchPageviews = async (_pageTitle: string): Promise<number> => {
-    return 0; // Disabled for now due to CORS
-  };
-
-  const fetchArticleCategories = async (pageid: number): Promise<string[]> => {
-    try {
-      const res = await fetch(
-        `https://en.wikipedia.org/w/api.php?origin=*&action=query&prop=categories&pageids=${pageid}&cllimit=50&format=json`
-      );
-      const data = await res.json();
-      const pages = data.query?.pages;
-      if (pages && pages[pageid]?.categories) {
-        return pages[pageid].categories.map((c: any) =>
-          c.title.replace("Category:", "")
-        );
-      }
-    } catch (err) {
-      console.error("fetchArticleCategories error:", err);
-    }
-    return [];
-  };
-
-  const fetchArticlesByRelevance = async (category: string) => {
-    try {
-      const res = await fetch(
-        `https://en.wikipedia.org/w/api.php?origin=*&action=query&list=search&srsearch=incategory:"${category}"&srlimit=10&format=json`
-      );
-      const data = await res.json();
-
-      const titles = data.query?.search?.map((item: any) => item.title) || [];
-
-      // Fetch pageids and metadata using titles
-      if (titles.length === 0) return [];
-
-      const titleParam = titles
-        .map((t: string) => encodeURIComponent(t))
-        .join("|");
-
-      const detailsRes = await fetch(
-        `https://en.wikipedia.org/w/api.php?origin=*&action=query&titles=${titleParam}&format=json`
-      );
-      const detailsData = await detailsRes.json();
-
-      const pages = Object.values(detailsData.query?.pages || {}) as any[];
-
-      return pages.map((page: any) => ({
-        pageid: page.pageid,
-        title: page.title,
-        relatedCategories: [category],
-        views: 0,
-      }));
-    } catch (err) {
-      console.error("fetchArticlesByRelevance error:", err);
-      return [];
-    }
-  };
-
+  // Update counts & scores whenever doneArticles or filteredArticles change
   useEffect(() => {
-    const fetchArticles = async () => {
-      let allArticles: Article[] = [];
+    const doneCount = filteredArticles.filter((a) =>
+      doneArticles.has(a.pageid)
+    ).length;
+    const totalCount = filteredArticles.length;
+    const score = filteredArticles
+      .filter((a) => doneArticles.has(a.pageid))
+      .reduce((acc, a) => acc + a.cleanup_messages.length, 0);
 
-      for (const category of categories) {
-        const articlesForCategory = await fetchArticlesByRelevance(category);
-        allArticles.push(...articlesForCategory);
-      }
+    if (onDoneUpdate) onDoneUpdate(doneCount);
+    if (onTotalUpdate) onTotalUpdate(totalCount);
+    if (onScoreUpdate) onScoreUpdate(score);
+  }, [
+    doneArticles,
+    filteredArticles,
+    onDoneUpdate,
+    onTotalUpdate,
+    onScoreUpdate,
+  ]);
 
-      // Deduplicate by pageid
-      const uniqueArticlesMap = new Map<number, Article>();
-      allArticles.forEach((article) => {
-        if (!uniqueArticlesMap.has(article.pageid)) {
-          uniqueArticlesMap.set(article.pageid, article);
-        }
-      });
+  const sortedArticles = [...filteredArticles].sort((a, b) => {
+    if (!sortKey) return 0;
+    const getValue = (article: Article) =>
+      sortKey === "cleanupCount"
+        ? article.cleanup_messages.length
+        : article.relevance;
 
-      const uniqueArticles = Array.from(uniqueArticlesMap.values());
+    const valA = getValue(a);
+    const valB = getValue(b);
 
-      const articlesWithDetails = await Promise.all(
-        uniqueArticles.map(async (article) => {
-          const [views, articleCategories] = await Promise.all([
-            fetchPageviews(article.title),
-            fetchArticleCategories(article.pageid),
-          ]);
+    return sortDirection === "asc" ? valA - valB : valB - valA;
+  });
 
-          const relatedCategories = articleCategories.filter((c) =>
-            categories.map(normalize).includes(normalize(c))
-          );
-
-          return { ...article, views, relatedCategories };
-        })
-      );
-
-      setArticles(articlesWithDetails);
-    };
-
-    if (categories.length > 0) {
-      fetchArticles();
+  const onSortClick = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDirection("asc");
     }
-  }, [categories]);
+  };
+
+  const renderSortArrow = (key: SortKey) => {
+    if (sortKey !== key) return null;
+    return sortDirection === "asc" ? " ▲" : " ▼";
+  };
+
+  const toggleDone = (pageid: number) => {
+    setDoneArticles((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(pageid)) {
+        newSet.delete(pageid);
+      } else {
+        newSet.add(pageid);
+      }
+      return newSet;
+    });
+  };
 
   return (
     <section className="container mt-4">
-      <ul className="list-group">
-        {articles.map(({ pageid, title, views, relatedCategories }) => (
-          <li
-            key={pageid}
-            className="list-group-item d-flex justify-content-between align-items-center flex-column flex-md-row"
-          >
-            <div>
-              <a
-                href={`https://en.wikipedia.org/?curid=${pageid}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="fw-bold"
+      <div className="table-responsive">
+        <table className="table table-striped table-bordered align-middle">
+          <thead className="table-primary">
+            <tr>
+              <th scope="col">Title</th>
+              <th scope="col">Categories</th>
+              <th
+                style={{ cursor: "pointer" }}
+                onClick={() => onSortClick("cleanupCount")}
               >
-                {title}
-              </a>
-              <br />
-              <small className="text-muted">
-                Related categories:{" "}
-                {relatedCategories.length > 0
-                  ? relatedCategories.join(", ")
-                  : "None"}
-              </small>
-            </div>
-            <span className="badge bg-secondary mt-2 mt-md-0">
-              Views: {views.toLocaleString()}
-            </span>
-          </li>
-        ))}
-      </ul>
+                Cleanup Message Count{renderSortArrow("cleanupCount")}
+              </th>
+              <th
+                style={{ cursor: "pointer" }}
+                onClick={() => onSortClick("relevance")}
+              >
+                Relevance{renderSortArrow("relevance")}
+              </th>
+              <th scope="col">Cleanup Messages</th>
+              <th scope="col">Mark as Done</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedArticles.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center">
+                  No suggestions available.
+                </td>
+              </tr>
+            ) : (
+              sortedArticles.map((article) => (
+                <tr
+                  key={article.pageid}
+                  className={
+                    doneArticles.has(article.pageid) ? "table-success" : ""
+                  }
+                >
+                  <td>
+                    <a
+                      href={`https://en.wikipedia.org/?curid=${article.pageid}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="fw-bold"
+                    >
+                      {article.title}
+                    </a>
+                  </td>
+                  <td>{article.relatedCategories.join(", ")}</td>
+                  <td>{article.cleanup_messages.length}</td>
+                  <td>{article.relevance}</td>
+                  <td>
+                    {article.cleanup_messages.map((msg, idx) => (
+                      <div key={idx}>{msg}</div>
+                    ))}
+                  </td>
+                  <td>
+                    <button
+                      className="btn btn-sm"
+                      onClick={() => toggleDone(article.pageid)}
+                      style={{
+                        minWidth: "100px",
+                        backgroundColor: doneArticles.has(article.pageid)
+                          ? "#4caf50"
+                          : "#f78f1e",
+                        color: "white",
+                        border: "none",
+                      }}
+                    >
+                      {doneArticles.has(article.pageid)
+                        ? "✓ Done"
+                        : "Mark as Done"}
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 };

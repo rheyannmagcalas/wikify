@@ -3,7 +3,6 @@ import Cookies from "js-cookie";
 import "bootstrap/dist/css/bootstrap.min.css";
 import BootstrapStartModal from "./components/BootstrapStartModal";
 import CategorySuggestions from "./components/CategorySuggestions";
-import TopSearches from "./components/TopSearches";
 
 interface UserProfile {
   username: string;
@@ -39,6 +38,11 @@ const Divider: React.FC = () => (
 const App: React.FC = () => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Track done/total/score for articles in CategorySuggestions
+  const [doneCount, setDoneCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [score, setScore] = useState(0);
 
   useEffect(() => {
     const username = Cookies.get("username");
@@ -103,8 +107,14 @@ const App: React.FC = () => {
         <>
           {/* Fixed Banner */}
           <div
-            style={{ position: "fixed", top: 0, width: "100%", zIndex: 1000 }}
-            className="bg-primary text-white p-3 shadow d-flex align-items-center"
+            style={{
+              position: "fixed",
+              top: 0,
+              width: "100%",
+              zIndex: 1000,
+              backgroundColor: "#1f2a38",
+            }}
+            className="text-white p-3 shadow d-flex align-items-center"
           >
             <div className="container d-flex justify-content-between align-items-center">
               {/* Left side */}
@@ -115,7 +125,7 @@ const App: React.FC = () => {
                   fontSize: "1.5rem",
                 }}
               >
-                WikiQuest
+                Wikify
               </div>
 
               {/* Right side: Welcome + Logout */}
@@ -149,86 +159,146 @@ const App: React.FC = () => {
 
           {/* Content below fixed banner */}
           <div className="container mt-5 pt-5">
-            <div className="mb-4 mt-3">
-              <h6>Your Interests:</h6>
-              <div className="d-flex align-items-center flex-wrap gap-2">
-                {ALL_CATEGORIES.map((cat) => {
-                  const isSelected = userProfile.categories.includes(cat);
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      className={`btn btn-sm ${
-                        isSelected ? "btn-primary" : "btn-outline-primary"
-                      }`}
-                      onClick={() => toggleCategory(cat)}
-                    >
-                      {cat}
-                      {isSelected && (
-                        <span
-                          style={{ marginLeft: 6, fontWeight: "bold" }}
-                          aria-label="Remove"
-                        >
-                          &times;
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+            <div
+              className="d-flex flex-wrap align-items-center gap-3"
+              style={{ justifyContent: "space-between" }}
+            >
+              {/* Interests + Refresh Button container */}
+              <div
+                className="d-flex flex-wrap align-items-center gap-2 mt-4"
+                style={{ flexGrow: 1, minWidth: 0 }}
+              >
+                <h6 style={{ flexBasis: "100%", marginBottom: "0.5rem" }}>
+                  Your Interests:
+                </h6>
+                <div
+                  className="d-flex flex-wrap gap-2"
+                  style={{ flexGrow: 1, minWidth: 0 }}
+                >
+                  {ALL_CATEGORIES.map((cat) => {
+                    const isSelected = userProfile.categories.includes(cat);
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        className={`btn btn-sm ${
+                          isSelected ? "btn-primary" : "btn-outline-primary"
+                        }`}
+                        onClick={() => toggleCategory(cat)}
+                      >
+                        {cat}
+                        {isSelected && (
+                          <span
+                            style={{ marginLeft: 6, fontWeight: "bold" }}
+                            aria-label="Remove"
+                          >
+                            &times;
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Refresh button on the side */}
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary btn-sm"
+                  onClick={handleSearchAgain}
+                  title="Refresh suggestions"
+                  style={{ whiteSpace: "nowrap", marginLeft: "auto" }}
+                >
+                  🔁 Refresh
+                </button>
               </div>
             </div>
 
-            {/* Accordion for Suggestions */}
-            <div className="accordion" id="suggestionsAccordion">
-              <div className="accordion-item">
-                <h2 className="accordion-header" id="headingSuggestions">
-                  <button
-                    className="accordion-button"
-                    type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#collapseSuggestions"
-                    aria-expanded="true"
-                    aria-controls="collapseSuggestions"
-                  >
-                    <div className="d-flex justify-content-between align-items-center w-100">
-                      <span>comp</span>
+            {/* Status/Score Section with multi-column paragraphs */}
+            <div
+              style={{
+                marginTop: "1.5rem",
+                backgroundColor: "#e0f7fa",
+                color: "#006064",
+                padding: "1rem 1.5rem",
+                borderRadius: "0.5rem",
+                boxShadow: "0 4px 10px rgba(0, 96, 100, 0.2)",
+                userSelect: "none",
+                fontWeight: 600,
+                fontSize: "1.1rem",
+                columnCount: 2,
+                columnGap: "1.5rem",
+              }}
+            >
+              <p style={{ marginBottom: "0.5rem" }}>
+                🔍 <strong>{totalCount}</strong> article
+                {totalCount !== 1 ? "s" : ""} found —{" "}
+                <span style={{ color: "#00796b" }}>
+                  <strong>{doneCount}</strong>/<strong>{totalCount}</strong>{" "}
+                  marked as done
+                </span>
+              </p>
+              <p
+                style={{ fontSize: "1rem", fontWeight: 500, color: "#004d40" }}
+              >
+                💪 Total cleanup messages contributed: <strong>{score}</strong>
+              </p>
+              <p
+                style={{
+                  marginTop: "0.5rem",
+                  fontStyle: "italic",
+                  color: "#004d40",
+                }}
+              >
+                Keep going — every edit helps make Wikipedia better! 🚀
+              </p>
+            </div>
+          </div>
+
+          {/* Accordion for Suggestions */}
+          <div className="container mt-3">
+            <div className="row">
+              <div className="col-12">
+                <div className="accordion w-100" id="suggestionsAccordion">
+                  <div className="accordion-item">
+                    <h2 className="accordion-header" id="headingSuggestions">
                       <button
+                        className="accordion-button"
                         type="button"
-                        className="btn btn-outline-secondary btn-sm"
-                        onClick={(e) => {
-                          e.stopPropagation(); // prevent accordion toggle
-                          handleSearchAgain();
-                        }}
-                        title="Refresh suggestions"
-                        style={{ whiteSpace: "nowrap" }}
+                        data-bs-toggle="collapse"
+                        data-bs-target="#collapseSuggestions"
+                        aria-expanded="true"
+                        aria-controls="collapseSuggestions"
                       >
-                        🔁 Search Again
+                        Suggested Wikipedia Articles for Cleanup
                       </button>
+                    </h2>
+                    <div
+                      id="collapseSuggestions"
+                      className="accordion-collapse collapse show"
+                      aria-labelledby="headingSuggestions"
+                      data-bs-parent="#suggestionsAccordion"
+                    >
+                      <div
+                        className="accordion-body"
+                        style={{
+                          padding: "1rem 1.5rem",
+                          backgroundColor: "#f9f9f9",
+                          borderRadius: "0 0 0.375rem 0.375rem",
+                          boxShadow: "0 2px 6px rgb(0 0 0 / 0.1)",
+                        }}
+                      >
+                        <CategorySuggestions
+                          key={refreshKey}
+                          categories={userProfile.categories}
+                          onDoneUpdate={setDoneCount}
+                          onTotalUpdate={setTotalCount}
+                          onScoreUpdate={setScore}
+                        />
+                      </div>
                     </div>
-                  </button>
-                </h2>
-                <div
-                  id="collapseSuggestions"
-                  className="accordion-collapse collapse show"
-                  aria-labelledby="headingSuggestions"
-                  data-bs-parent="#suggestionsAccordion"
-                >
-                  <div className="accordion-body p-0">
-                    {
-                      <CategorySuggestions
-                        key={refreshKey}
-                        categories={userProfile.categories}
-                      />
-                    }
                   </div>
                 </div>
               </div>
             </div>
-
-            {/* Divider between suggestions and top searches */}
-            <Divider />
-
-            <TopSearches />
           </div>
         </>
       )}
@@ -237,23 +307,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-// export default function App() {
-//   const [message, setMessage] = useState("");
-
-//   useEffect(() => {
-//     fetch("http://localhost:8000/")
-//       .then((res) => res.json())
-//       .then((data) => setMessage(data.message))
-//       .catch(() => setMessage("Failed to fetch message"));
-//   }, []);
-
-//   return (
-//     <div style={{ padding: 20, fontFamily: "Arial" }}>
-//       <h1>Wikify Frontend (React + FastAPI)</h1>
-//       <p>
-//         Backend says: <strong>{message}</strong>
-//       </p>
-//     </div>
-//   );
-// }

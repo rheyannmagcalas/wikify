@@ -1,0 +1,52 @@
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# Dependency wheels
+*.whl
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# VSCode and PyCharm
+.vscode/
+.idea/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Testing
+htmlcov/
+.coverage
+.cache/
+pytest_cache/
+
+# FastAPI/Uvicorn logs (if generated)
+*.log
+
+# MyPy and typing
+.mypy_cache/
+.dmypy.json
+
+# Environment variables
+.env
+.env.*
+
+# Build
+build/
+dist/
+*.egg-info/

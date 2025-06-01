@@ -53,6 +53,10 @@ const BootstrapStartModal = ({
       tabIndex={-1}
       role="dialog"
       aria-modal="true"
+      style={{
+        backgroundColor: "#1f2a38", // #1f2a38 with some opacity for overlay effect
+        backdropFilter: "blur(4px)", // optional: subtle blur behind modal for nice effect
+      }}
     >
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content p-3">
