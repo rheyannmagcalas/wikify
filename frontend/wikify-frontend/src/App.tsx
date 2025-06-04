@@ -95,7 +95,16 @@ const App: React.FC = () => {
     });
   };
 
+  // Reload categories from cookie and refresh suggestions
   const handleSearchAgain = () => {
+    const categoriesCookie = Cookies.get("categories");
+    let categories: string[] = [];
+    if (categoriesCookie) {
+      try {
+        categories = JSON.parse(categoriesCookie);
+      } catch {}
+    }
+    setUserProfile((prev) => (prev ? { ...prev, categories } : null));
     setRefreshKey((prev) => prev + 1);
   };
 

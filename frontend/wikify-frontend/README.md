@@ -1,54 +1,64 @@
-# React + TypeScript + Vite
+# Wikify Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the React frontend application for **Wikify** — a tool that suggests Wikipedia articles for cleanup based on user interests.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Prerequisites
 
-## Expanding the ESLint configuration
+- Node.js (v14+ recommended)
+- npm (comes with Node.js)
+- Make (to use the provided Makefile)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+## Quick Start
+
+Use the provided `Makefile` to easily install dependencies, run the development server, build for production, and clean the project.
+
+### Install dependencies and start dev server
+
+```bash
+make
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+This runs the default all target which installs dependencies and starts the development server on: http://localhost:5174
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Makefile Targets
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
+- **install**  
+  Install npm dependencies (`npm install`) and ensure `js-cookie` and `bootstrap` are installed.
+
+- **start**  
+  Kill any process using port 5174, then start the dev server on port 5174 using Vite.
+
+- **build**  
+  Build the app for production (`npm run build`).
+
+- **clean**  
+  Remove `node_modules`, build directory (`dist`), and `package-lock.json`.
+
+- **format**  
+  Run Prettier to format source files.
+
+## Development
+
+- The app runs on Vite dev server: http://localhost:5174
+- Live reload enabled for fast iteration.
+- User preferences (username & categories) are stored in cookies.
+- Modify source files in src/ to add or update features.
+
+## Cleaning
+
+To reset your environment and clean install dependencies, run:
+
 ```
+make clean
+make install
+```
+
+## Notes
+
+- The frontend expects an API backend running locally on port 8000 to fetch recommendations.
+- Categories can be toggled on the main page to filter article suggestions.
+- Refresh button reloads suggestions based on current categories.
